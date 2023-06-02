@@ -10,22 +10,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TLB_SIZE  16
-#define PAGES     1024
-#define PAGE_MASK /* TODO */
+#define TLB_SIZE    16
 
-#define PAGE_SIZE   1024
+#define PAGE_BITS   10
+#define PAGES       (1 << PAGE_BITS)
+#define PAGE_MASK   (PAGES - 1) << PAGE_BITS
+#define PAGE_SIZE   PAGES
+
 #define OFFSET_BITS 10
-#define OFFSET_MASK /* TODO */
+#define OFFSET_MASK ((1 << OFFSET_BITS) - 1)
 
-#define MEMORY_SIZE PAGES *PAGE_SIZE
+#define MEMORY_SIZE PAGES * PAGE_SIZE
 
 // Max number of characters per line of input file to read.
 #define BUFFER_SIZE 10
 
 struct tlbentry {
-    unsigned char logical;
-    unsigned char physical;
+    int reference_bit;
+    unsigned int logical;
+    unsigned int physical;
 };
 
 // TLB is kept track of as a circular array,
@@ -52,16 +55,38 @@ int max(int a, int b) {
 }
 
 // Returns the physical address from TLB or -1 if not present.
-int search_tlb(unsigned char logical_page) {
+int search_tlb(unsigned int logical_page) {
     /* TODO */
+    for(int i = 0; i < TLB_SIZE; i++) {
+        if(tlb[i].logical == logical_page) {
+            return tlb[i].physical;
+        }
+    }
+
     return -1;
 }
 
 // Adds the specified mapping to the TLB,
 // replacing the oldest mapping (FIFO replacement).
-void add_to_tlb(unsigned char logical, unsigned char physical) {
+void add_to_tlb(unsigned int logical, unsigned int physical) {
     /* TODO */
-    return;
+
+    for(int i = tlbindex; i < TLB_SIZE; i++) {
+
+
+        if (tlb[i].reference_bit == 1){
+
+            tlb[i].reference_bit = 0;
+            if (i >= TLB_SIZE){
+                i = 0;
+            }
+            continue;
+
+        }
+        tlb[i] = (struct tlbentry){1, logical, physical};
+        tlbindex = i;
+        return;
+    }
 }
 
 int main(int argc, const char *argv[]) {
@@ -92,7 +117,7 @@ int main(int argc, const char *argv[]) {
     int page_faults = 0;
 
     // Number of the next unallocated physical page in main memory
-    unsigned char free_page = 0;
+    unsigned int free_page = 0;
 
     while (fgets(buffer, BUFFER_SIZE, input_fp) != NULL) {
         total_addresses++;
@@ -100,8 +125,8 @@ int main(int argc, const char *argv[]) {
 
         // TODO
         // Calculate the page offset and logical page number from logical_address
-        int offset = -1;
-        int logical_page = -1;
+        int offset = logical_address & OFFSET_MASK;
+        int logical_page = (logical_address & PAGE_MASK) >> OFFSET_BITS;
 
         int physical_page = search_tlb(logical_page);
 
@@ -115,6 +140,12 @@ int main(int argc, const char *argv[]) {
             // Page fault
             if (physical_page == -1) {
                 /* TODO */
+                page_faults++;
+                physical_page = free_page;
+                free_page++;
+
+                memcpy(physical_page * PAGE_SIZE + main_memory, logical_page * PAGE_SIZE + backing, PAGE_SIZE);
+                pagetable[logical_page] = physical_page;
             }
 
             add_to_tlb(logical_page, physical_page);
@@ -123,6 +154,7 @@ int main(int argc, const char *argv[]) {
         int physical_address = (physical_page << OFFSET_BITS) | offset;
         signed char value = main_memory[physical_page * PAGE_SIZE + offset];
 
+        // TODO: revert to normal when finished
         printf("Virtual address: %d Physical address: %d Value: %d\n",
                logical_address, physical_address, value);
     }
