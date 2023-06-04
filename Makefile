@@ -1,6 +1,6 @@
-CC := g++
+CC := gcc
 
 all:
-	$(CC) -Wall -Wextra main.cpp -o main
+	$(CC) -Wall -Wextra virtmem.c -o main
 clean:
 	rm main

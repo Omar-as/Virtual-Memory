@@ -70,22 +70,26 @@ int search_tlb(unsigned int logical_page) {
 // replacing the oldest mapping (FIFO replacement).
 void add_to_tlb(unsigned int logical, unsigned int physical) {
     /* TODO */
-
     for(int i = tlbindex; i < TLB_SIZE; i++) {
 
+        if ( i >= TLB_SIZE ) {
+            i = 0;
+        }
 
-        if (tlb[i].reference_bit == 1){
+        if (tlb[i].reference_bit == 1) {
 
             tlb[i].reference_bit = 0;
-            if (i >= TLB_SIZE){
-                i = 0;
-            }
-            continue;
 
+        } else {
+            struct tlbentry entry;
+            entry.logical = logical;
+            entry.physical = physical;
+
+            tlb[i] = entry;
+
+            tlbindex = i + 1;
+            return;
         }
-        tlb[i] = (struct tlbentry){1, logical, physical};
-        tlbindex = i;
-        return;
     }
 }
 
@@ -155,7 +159,8 @@ int main(int argc, const char *argv[]) {
         signed char value = main_memory[physical_page * PAGE_SIZE + offset];
 
         // TODO: revert to normal when finished
-        printf("Virtual address: %d Physical address: %d Value: %d\n",
+        printf("Accessing logical:  %d\n", logical_page);
+        printf("Virtual address: %d, Physical address: %d Value: %d\n",
                logical_address, physical_address, value);
     }
 
