@@ -63,7 +63,7 @@ int max(int a, int b) {
 
 // Returns the physical address from TLB or -1 if not present.
 int search_tlb(unsigned int logical_page) {
-    /* TODO */
+
     for(int i = 0; i < TLB_SIZE; i++) {
         if(tlb[i].logical == logical_page) {
             return tlb[i].physical;
@@ -76,7 +76,6 @@ int search_tlb(unsigned int logical_page) {
 // Adds the specified mapping to the TLB,
 // replacing the oldest mapping (FIFO replacement).
 void add_to_tlb(unsigned int logical, unsigned int physical) {
-    /* TODO */
 
     while(1){
 
@@ -97,12 +96,15 @@ void add_to_tlb(unsigned int logical, unsigned int physical) {
 
 int second_chance(int page_faults) {
  
+    // check if there are free pages if so return the index of the page
     if ( page_faults <= FRAMES ) { return page_faults - 1; } 		
+
     second_chance_index  %= PAGES;
+
     while(1){
 
         if ( pagetable[second_chance_index] != -1 ) {
-            if ( reference_bits[second_chance_index] != 1 ) {
+            if ( reference_bits[second_chance_index] == 0 ) {
 
                 reference_bits[second_chance_index] = 1;
                 return pagetable[second_chance_index];
@@ -116,29 +118,36 @@ int second_chance(int page_faults) {
 
 int leastRecentlyUsed(int* references, int page_faults){
 
-    if ( page_faults <= FRAMES ) { return page_faults - 1; } 		
+    // check if there are free pages if so return the index of the page
+    if ( page_faults <= FRAMES ) { return page_faults - 1; }
 
-    int least_used = INT_MAX;
+    int least_used_idx = NULL;
     int value = 0;
 
+    // loop through the pages
     for ( int i = 0; i < PAGES; i++ ) {
+        // if the page is not within th
         if ( pagetable[i] != -1 ) {
-            if ( value == 0 || value > references[i] ) {
-                least_used = i;
+            if(references[i] == 0) return pagetable[i];
+            if ( value > references[i] ) {
+                least_used_idx = i;
                 value = references[i];
             }
         }
     }
-    return pagetable[least_used]; 
+    return pagetable[least_used_idx]; 
 }
 
 int main(int argc, const char *argv[]) {
-        
-    if (argc != 5) {
+
+    if ( argc != 5 ) {
         fprintf(stderr, "Usage ./virtmem backingstore input -p (0 or 1) \n");
         exit(1);
     }
-
+    else if (strcmp(argv[4], "1") && strcmp(argv[4], "0")) {
+        fprintf(stderr, "The value of -p should be either 0 or 1 \n");
+        exit(1);
+    }
     const char *backing_filename = argv[1];
     int backing_fd = open(backing_filename, O_RDONLY);
     backing = mmap(0, MEMORY_SIZE, PROT_READ, MAP_PRIVATE, backing_fd, 0);
@@ -162,9 +171,6 @@ int main(int argc, const char *argv[]) {
     int tlb_hits = 0;
     int page_faults = 0;
 
-    // Number of the next unallocated physical page in main memory
-    unsigned int free_page = 0;
-
     int references[PAGES];
     for (int i = 0; i < PAGES; i++) {
         references[i] = 0;
@@ -174,8 +180,6 @@ int main(int argc, const char *argv[]) {
         total_addresses++;
         int logical_address = atoi(buffer);
 
-        // TODO
-        // Calculate the page offset and logical page number from logical_address
         int offset = logical_address & OFFSET_MASK;
         int logical_page = (logical_address & PAGE_MASK) >> OFFSET_BITS;
 
@@ -192,13 +196,10 @@ int main(int argc, const char *argv[]) {
 
             // Page fault
             if (physical_page == -1) {
-                /* TODO */
                 page_faults++;
 
                 if ( replacement_choice == 0 ) {
 
-                    /* physical_page = free_page; */
-                    /* free_page++; */
                     physical_page = second_chance(page_faults);
 
                 } else if ( replacement_choice == 1 ) {
@@ -208,13 +209,6 @@ int main(int argc, const char *argv[]) {
                 }
 
                 memcpy(physical_page * PAGE_SIZE + main_memory, logical_page * PAGE_SIZE + backing, PAGE_SIZE);
-
-                for(int i = 0; i < PAGES; i++){
-                    if(pagetable[i] == physical_page){
-                        pagetable[i] = -1;
-                        /* reference_bits[i] = 0; */
-                    }
-                }
 
                 pagetable[logical_page] = physical_page;
             }
@@ -226,7 +220,6 @@ int main(int argc, const char *argv[]) {
         int physical_address = (physical_page << OFFSET_BITS) | offset;
         signed char value = main_memory[physical_page * PAGE_SIZE + offset];
 
-        // TODO: revert to normal when finished
         printf("Accessing logical:  %d\n", logical_page);
         printf("Virtual address: %d, Physical address: %d Value: %d\n",
                logical_address, physical_address, value);
