@@ -42,9 +42,13 @@ struct tlbentry tlb[TLB_SIZE];
 // Use as tlbindex % TLB_SIZE for the index of the next TLB line to use.
 int tlbindex = 0;
 
+int second_chance_index = 0;
+
 // pagetable[logical_page] is the physical page number for logical page.
 // Value is -1 if that logical page isn't yet in the table.
 int pagetable[PAGES];
+
+int reference_bits[PAGES];
 
 signed char main_memory[MEMORY_SIZE];
 
@@ -88,28 +92,44 @@ void add_to_tlb(unsigned int logical, unsigned int physical) {
         tlb[tlbindex].reference_bit = 0;
 
         tlbindex = ((tlbindex + 1) % TLB_SIZE);
-
     }
+}
 
+int second_chance(int page_faults) {
+ 
+    if ( page_faults <= FRAMES ) { return page_faults - 1; } 		
+    second_chance_index  %= PAGES;
+    while(1){
+
+        if ( pagetable[second_chance_index] != -1 ) {
+            if ( reference_bits[second_chance_index] != 1 ) {
+
+                reference_bits[second_chance_index] = 1;
+                return pagetable[second_chance_index];
+            }
+        }
+        reference_bits[second_chance_index] = 0;
+
+        second_chance_index = ((second_chance_index + 1) % PAGES);
+    }
 }
 
 int leastRecentlyUsed(int* references, int page_faults){
 
-	if ( page_faults <= FRAMES ) { return page_faults - 1; } 		
+    if ( page_faults <= FRAMES ) { return page_faults - 1; } 		
 
-  	int least_used = INT_MAX;
-  	int value = 0;
+    int least_used = INT_MAX;
+    int value = 0;
 
-  	for ( int i = 0; i < PAGES; i++ ) {
+    for ( int i = 0; i < PAGES; i++ ) {
         if ( pagetable[i] != -1 ) {
             if ( value == 0 || value > references[i] ) {
                 least_used = i;
                 value = references[i];
             }
-		}
-  	}
-	return pagetable[least_used]; 
-
+        }
+    }
+    return pagetable[least_used]; 
 }
 
 int main(int argc, const char *argv[]) {
@@ -129,9 +149,9 @@ int main(int argc, const char *argv[]) {
     int replacement_choice = atoi(argv[4]);
 
     // Fill page table entries with -1 for initially empty table.
-    int i;
-    for (i = 0; i < PAGES; i++) {
+    for (int i = 0; i < PAGES; i++) {
         pagetable[i] = -1;
+        reference_bits[i] = 0;
     }
 
     // Character buffer for reading lines of input file.
@@ -177,8 +197,9 @@ int main(int argc, const char *argv[]) {
 
                 if ( replacement_choice == 0 ) {
 
-                    physical_page = free_page;
-                    free_page++;
+                    /* physical_page = free_page; */
+                    /* free_page++; */
+                    physical_page = second_chance(page_faults);
 
                 } else if ( replacement_choice == 1 ) {
 
@@ -191,6 +212,7 @@ int main(int argc, const char *argv[]) {
                 for(int i = 0; i < PAGES; i++){
                     if(pagetable[i] == physical_page){
                         pagetable[i] = -1;
+                        /* reference_bits[i] = 0; */
                     }
                 }
 
