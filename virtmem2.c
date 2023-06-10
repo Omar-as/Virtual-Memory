@@ -73,24 +73,24 @@ int search_tlb(unsigned int logical_page) {
 // replacing the oldest mapping (FIFO replacement).
 void add_to_tlb(unsigned int logical, unsigned int physical) {
     /* TODO */
-    for(int i = tlbindex; i < TLB_SIZE; i++) {
 
-        if ( i >= TLB_SIZE ) i = 0;
+    while(1){
 
-        if (tlb[i].reference_bit == 1) {
-            tlb[i].reference_bit = 0;
-        } else {
+        if ( tlb[tlbindex].reference_bit != 1 ) {
 
-            struct tlbentry entry;
-            entry.logical = logical;
-            entry.physical = physical;
-
-            tlb[i] = entry;
-            tlbindex = i + 1;
-
+            tlb[tlbindex].reference_bit = 1;
+            tlb[tlbindex].logical = logical;
+            tlb[tlbindex].physical = physical;
+            tlbindex = ((tlbindex + 1) % TLB_SIZE);
             return;
         }
+
+        tlb[tlbindex].reference_bit = 0;
+
+        tlbindex = ((tlbindex + 1) % TLB_SIZE);
+
     }
+
 }
 
 int leastRecentlyUsed(int* references, int page_faults){
