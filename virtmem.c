@@ -59,7 +59,10 @@ int search_tlb(unsigned int logical_page) {
     /* TODO */
     for(int i = 0; i < TLB_SIZE; i++) {
         if(tlb[i].logical == logical_page) {
+
+            tlb[i].reference_bit = 1;
             return tlb[i].physical;
+
         }
     }
 
@@ -70,27 +73,24 @@ int search_tlb(unsigned int logical_page) {
 // replacing the oldest mapping (FIFO replacement).
 void add_to_tlb(unsigned int logical, unsigned int physical) {
     /* TODO */
-    for(int i = tlbindex; i < TLB_SIZE; i++) {
 
-        if ( i >= TLB_SIZE ) {
-            i = 0;
-        }
+    while(1){
 
-        if (tlb[i].reference_bit == 1) {
+        if ( tlb[tlbindex].reference_bit != 1 ) {
 
-            tlb[i].reference_bit = 0;
-
-        } else {
-            struct tlbentry entry;
-            entry.logical = logical;
-            entry.physical = physical;
-
-            tlb[i] = entry;
-
-            tlbindex = i + 1;
+            tlb[tlbindex].reference_bit = 1;
+            tlb[tlbindex].logical = logical;
+            tlb[tlbindex].physical = physical;
+            tlbindex = ((tlbindex + 1) % TLB_SIZE);
             return;
         }
+
+        tlb[tlbindex].reference_bit = 0;
+
+        tlbindex = ((tlbindex + 1) % TLB_SIZE);
+
     }
+
 }
 
 int main(int argc, const char *argv[]) {
@@ -143,7 +143,6 @@ int main(int argc, const char *argv[]) {
 
             // Page fault
             if (physical_page == -1) {
-                /* TODO */
                 page_faults++;
                 physical_page = free_page;
                 free_page++;
@@ -159,8 +158,8 @@ int main(int argc, const char *argv[]) {
         signed char value = main_memory[physical_page * PAGE_SIZE + offset];
 
         // TODO: revert to normal when finished
-        printf("Accessing logical:  %d\n", logical_page);
-        printf("Virtual address: %d, Physical address: %d Value: %d\n",
+        /* printf("Accessing logical:  %d\n", logical_page); */
+        printf("Virtual address: %d Physical address: %d Value: %d\n",
                logical_address, physical_address, value);
     }
 
