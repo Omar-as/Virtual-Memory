@@ -1,6 +1,6 @@
 CC := gcc
 
 all:
-	$(CC) -Wall -Wextra virtmem.c -o main
+	$(CC) -Wall -Wextra virtmem2.c -o main
 clean:
 	rm main
